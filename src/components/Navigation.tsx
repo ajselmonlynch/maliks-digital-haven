@@ -10,6 +10,7 @@ const Navigation = () => {
     { to: "/", label: "Home" },
     { to: "/journal", label: "Journal" },
     { to: "/gallery", label: "Art & Merch" },
+    { to: "/library", label: "Library" },
     { to: "/about", label: "About" },
     { to: "/contact", label: "Connect" },
   ];
