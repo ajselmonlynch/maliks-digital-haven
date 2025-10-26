@@ -22,7 +22,17 @@ const Footer = () => {
               </li>
               <li>
                 <a href="/gallery" className="text-muted-foreground hover:text-primary transition-colors">
-                  Art & Merch
+                  Art
+                </a>
+              </li>
+              <li>
+                <a href="/products" className="text-muted-foreground hover:text-primary transition-colors">
+                  Products
+                </a>
+              </li>
+              <li>
+                <a href="/library" className="text-muted-foreground hover:text-primary transition-colors">
+                  Library
                 </a>
               </li>
               <li>
@@ -31,8 +41,13 @@ const Footer = () => {
                 </a>
               </li>
               <li>
-                <a href="/contact" className="text-muted-foreground hover:text-primary transition-colors">
-                  Connect
+                <a href="/legal/privacy" className="text-muted-foreground hover:text-primary transition-colors">
+                  Privacy
+                </a>
+              </li>
+              <li>
+                <a href="/legal/terms" className="text-muted-foreground hover:text-primary transition-colors">
+                  Terms
                 </a>
               </li>
             </ul>

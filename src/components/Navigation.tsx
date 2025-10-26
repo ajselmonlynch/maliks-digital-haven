@@ -9,7 +9,9 @@ const Navigation = () => {
   const links = [
     { to: "/", label: "Home" },
     { to: "/journal", label: "Journal" },
-    { to: "/gallery", label: "Art & Merch" },
+    { to: "/gallery", label: "Art" },
+    { to: "/products", label: "Products" },
+    { to: "/through-maliks-eyes", label: "Through Malik's Eyes" },
     { to: "/library", label: "Library" },
     { to: "/about", label: "About" },
     { to: "/contact", label: "Connect" },
