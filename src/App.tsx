@@ -8,6 +8,7 @@ import Journal from "./pages/Journal";
 import Gallery from "./pages/Gallery";
 import Library from "./pages/Library";
 import Products from "./pages/Products";
+import ProductDetail from "./pages/ProductDetail";
 import ThroughMaliksEyes from "./pages/ThroughMaliksEyes";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
@@ -29,6 +30,7 @@ const App = () => (
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/library" element={<Library />} />
           <Route path="/products" element={<Products />} />
+          <Route path="/product/:handle" element={<ProductDetail />} />
           <Route path="/through-maliks-eyes" element={<ThroughMaliksEyes />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />

@@ -1,144 +1,219 @@
+import { useState, useEffect } from "react";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookOpen, FileText, Video, Download } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useNavigate } from "react-router-dom";
+import { useCartStore, ShopifyProduct } from "@/stores/cartStore";
+import { ShoppingCart } from "lucide-react";
+
+const SHOPIFY_STORE_PERMANENT_DOMAIN = 'maliks-digital-haven-6tste.myshopify.com';
+const SHOPIFY_API_VERSION = '2025-07';
+const SHOPIFY_STOREFRONT_URL = `https://${SHOPIFY_STORE_PERMANENT_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json`;
+const SHOPIFY_STOREFRONT_TOKEN = '4cee1a665fa0d673b7d2aad04a6c3872';
+
+const STOREFRONT_QUERY = `
+  query GetProducts($first: Int!) {
+    products(first: $first) {
+      edges {
+        node {
+          id
+          title
+          description
+          handle
+          priceRange {
+            minVariantPrice {
+              amount
+              currencyCode
+            }
+          }
+          images(first: 5) {
+            edges {
+              node {
+                url
+                altText
+              }
+            }
+          }
+          variants(first: 10) {
+            edges {
+              node {
+                id
+                title
+                price {
+                  amount
+                  currencyCode
+                }
+                availableForSale
+                selectedOptions {
+                  name
+                  value
+                }
+              }
+            }
+          }
+          options {
+            name
+            values
+          }
+        }
+      }
+    }
+  }
+`;
+
+async function storefrontApiRequest(query: string, variables: any = {}) {
+  const response = await fetch(SHOPIFY_STOREFRONT_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shopify-Storefront-Access-Token': SHOPIFY_STOREFRONT_TOKEN
+    },
+    body: JSON.stringify({
+      query,
+      variables,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const data = await response.json();
+  
+  if (data.errors) {
+    throw new Error(`Error calling Shopify: ${data.errors.map((e: any) => e.message).join(', ')}`);
+  }
+
+  return data;
+}
 
 const Products = () => {
-  const products = [
-    {
-      icon: BookOpen,
-      title: "The Architecture of Freedom",
-      description: "A comprehensive guide to building mental sovereignty and mastering your mindset.",
-      price: "$27",
-      formats: ["eBook", "Audiobook", "Hardcover"],
-      category: "Digital Book"
-    },
-    {
-      icon: FileText,
-      title: "The Daily Architect Journal",
-      description: "A premium guided journal for building discipline, clarity, and purposeful daily rituals.",
-      price: "$17",
-      formats: ["PDF", "Printable"],
-      category: "Journal"
-    },
-    {
-      icon: Video,
-      title: "Mindset Mastery Course",
-      description: "A transformative 8-week video course on developing unshakeable mental discipline.",
-      price: "$97",
-      formats: ["Video Series", "Workbook"],
-      category: "Course"
-    },
-    {
-      icon: BookOpen,
-      title: "Truth & Transformation",
-      description: "Raw reflections on identity, loss, and the journey to authentic manhood.",
-      price: "$24",
-      formats: ["eBook", "Audiobook"],
-      category: "Digital Book"
-    }
-  ];
+  const [products, setProducts] = useState<ShopifyProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const addItem = useCartStore(state => state.addItem);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const data = await storefrontApiRequest(STOREFRONT_QUERY, { first: 20 });
+        setProducts(data.data.products.edges);
+      } catch (error) {
+        console.error('Error fetching products:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
+  const handleAddToCart = (product: ShopifyProduct) => {
+    const variant = product.node.variants.edges[0].node;
+    addItem({
+      product,
+      variantId: variant.id,
+      variantTitle: variant.title,
+      price: variant.price,
+      quantity: 1,
+      selectedOptions: variant.selectedOptions
+    });
+  };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen flex flex-col">
       <Navigation />
       
-      {/* Hero Section */}
-      <section className="pt-32 pb-20 px-6 bg-gradient-hero relative overflow-hidden">
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute inset-0" style={{
-            backgroundImage: 'radial-gradient(circle at 2px 2px, hsl(var(--primary)) 1px, transparent 0)',
-            backgroundSize: '40px 40px'
-          }} />
-        </div>
-        
-        <div className="container mx-auto relative z-10">
-          <div className="max-w-3xl mx-auto text-center space-y-6">
-            <h1 className="font-serif text-5xl md:text-6xl font-bold animate-fade-in">
+      <main className="flex-1">
+        <section className="py-16 px-4 bg-gradient-to-b from-background to-secondary/20">
+          <div className="container mx-auto max-w-6xl text-center">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4">
               Digital Products
             </h1>
-            <p className="text-xl text-muted-foreground leading-relaxed">
-              Wisdom, tools, and experiences designed to transform your mind and elevate your life.
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Explore our curated collection of digital products designed to inspire and empower.
             </p>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Products Grid */}
-      <section className="py-20 px-6">
-        <div className="container mx-auto max-w-6xl">
-          <div className="grid md:grid-cols-2 gap-8">
-            {products.map((product, index) => {
-              const Icon = product.icon;
-              return (
-                <Card key={index} className="group hover:shadow-glow-gold transition-all duration-300 bg-card border-border">
-                  <CardHeader>
-                    <div className="w-16 h-16 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                      <Icon className="w-8 h-8 text-primary" />
-                    </div>
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <CardTitle className="text-2xl font-serif mb-2">{product.title}</CardTitle>
-                        <p className="text-sm text-primary font-semibold">{product.category}</p>
+        <section className="py-16 px-4">
+          <div className="container mx-auto max-w-6xl">
+            {loading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <Card key={i}>
+                    <CardHeader>
+                      <Skeleton className="h-48 w-full mb-4" />
+                      <Skeleton className="h-6 w-3/4" />
+                    </CardHeader>
+                    <CardContent>
+                      <Skeleton className="h-4 w-full mb-2" />
+                      <Skeleton className="h-4 w-5/6" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : products.length === 0 ? (
+              <div className="text-center py-16">
+                <ShoppingCart className="h-24 w-24 text-muted-foreground mx-auto mb-6" />
+                <h2 className="text-2xl font-semibold mb-4">No products found</h2>
+                <p className="text-muted-foreground mb-6">
+                  We don't have any products yet. Create your first product by telling me what you'd like to sell!
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Example: "Create a product called 'Premium T-Shirt' for $29.99"
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {products.map((product) => (
+                  <Card 
+                    key={product.node.id} 
+                    className="flex flex-col cursor-pointer hover:shadow-lg transition-shadow"
+                    onClick={() => navigate(`/product/${product.node.handle}`)}
+                  >
+                    {product.node.images.edges[0] && (
+                      <div className="aspect-square overflow-hidden rounded-t-lg">
+                        <img
+                          src={product.node.images.edges[0].node.url}
+                          alt={product.node.images.edges[0].node.altText || product.node.title}
+                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                        />
                       </div>
-                      <div className="text-right">
-                        <p className="text-3xl font-bold text-primary">{product.price}</p>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <CardDescription className="text-base leading-relaxed">
-                      {product.description}
-                    </CardDescription>
-                    
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-2">Available formats:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {product.formats.map((format, i) => (
-                          <span key={i} className="text-xs px-3 py-1 rounded-full bg-secondary text-secondary-foreground">
-                            {format}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="flex gap-3 pt-4">
+                    )}
+                    <CardHeader>
+                      <CardTitle>{product.node.title}</CardTitle>
+                      <CardDescription className="line-clamp-2">
+                        {product.node.description}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-1">
+                      <p className="text-2xl font-bold">
+                        {product.node.priceRange.minVariantPrice.currencyCode} $
+                        {parseFloat(product.node.priceRange.minVariantPrice.amount).toFixed(2)}
+                      </p>
+                    </CardContent>
+                    <CardFooter className="flex gap-2">
                       <Button 
-                        className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-glow-gold"
+                        className="flex-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAddToCart(product);
+                        }}
                       >
-                        <Download className="w-4 h-4 mr-2" />
-                        Purchase
+                        <ShoppingCart className="w-4 h-4 mr-2" />
+                        Add to Cart
                       </Button>
-                      <Button 
-                        variant="outline" 
-                        className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-                      >
-                        Preview
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
-
-          {/* Coming Soon Section */}
-          <div className="mt-20 text-center space-y-4">
-            <h2 className="font-serif text-3xl font-bold">More Coming Soon</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              New courses, workshops, and exclusive content are in development. 
-              Join the newsletter to be notified when they launch.
-            </p>
-            <Button 
-              size="lg"
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-glow-gold"
-            >
-              Join the Newsletter
-            </Button>
-          </div>
-        </div>
-      </section>
+        </section>
+      </main>
 
       <Footer />
     </div>
