@@ -7,6 +7,7 @@ import FinancingWidget from "@/components/FinancingWidget";
 import ComparisonModule from "@/components/ComparisonModule";
 import ConsultationCTA from "@/components/ConsultationCTA";
 import UpsellEngine from "@/components/UpsellEngine";
+import DigitalVault from "@/components/pdp/DigitalVault";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft, ShoppingCart, Truck, Shield, Award, Zap,
@@ -243,6 +244,9 @@ const ProductDetail = () => {
           <div className="mb-12">
             <ComparisonModule />
           </div>
+
+          {/* Digital Vault — value-stack bonus section */}
+          <DigitalVault />
 
           {/* Upsell Engine */}
           {upsells.length > 0 && (
