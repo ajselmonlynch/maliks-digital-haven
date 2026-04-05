@@ -49,15 +49,19 @@ export default {
         },
       },
       fontFamily: {
-        serif: ['Playfair Display', 'serif'],
         sans: ['Inter', 'sans-serif'],
+        mono: ['Roboto Mono', 'monospace'],
+        serif: ['Inter', 'sans-serif'],
       },
       backgroundImage: {
         'gradient-hero': 'var(--gradient-hero)',
-        'gradient-gold': 'var(--gradient-gold)',
+        'gradient-red': 'var(--gradient-red)',
+        'gradient-card': 'var(--gradient-card)',
       },
       boxShadow: {
-        'glow-gold': 'var(--glow-gold)',
+        'glow-red': 'var(--glow-red)',
+        'glow-red-sm': 'var(--glow-red-sm)',
+        'glow-red-lg': 'var(--glow-red-lg)',
       },
       borderRadius: {
         lg: "var(--radius)",

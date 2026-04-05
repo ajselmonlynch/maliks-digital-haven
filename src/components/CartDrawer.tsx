@@ -1,158 +1,202 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { ShoppingCart, Minus, Plus, Trash2, ExternalLink, Loader2 } from "lucide-react";
+import { ShoppingCart, Minus, Plus, Trash2, ArrowRight, Truck, Zap } from "lucide-react";
 import { useCartStore } from "@/stores/cartStore";
+import { formatPrice } from "@/lib/products";
+
+const FREE_FREIGHT_THRESHOLD = 3000;
 
 export const CartDrawer = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const { 
-    items, 
-    isLoading, 
-    updateQuantity, 
-    removeItem, 
-    createCheckout 
-  } = useCartStore();
-  
-  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-  const totalPrice = items.reduce((sum, item) => sum + (parseFloat(item.price.amount) * item.quantity), 0);
+  const { items, updateQty, removeItem } = useCartStore();
 
-  const handleCheckout = async () => {
-    try {
-      await createCheckout();
-      const checkoutUrl = useCartStore.getState().checkoutUrl;
-      if (checkoutUrl) {
-        window.open(checkoutUrl, '_blank');
-        setIsOpen(false);
-      }
-    } catch (error) {
-      console.error('Checkout failed:', error);
-    }
-  };
+  const itemCount = items.reduce((acc, i) => acc + i.qty, 0);
+  const subtotal = items.reduce((acc, i) => acc + i.product.price * i.qty, 0);
+  const freeFreightRemaining = Math.max(0, FREE_FREIGHT_THRESHOLD - subtotal);
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" size="icon" className="relative">
-          <ShoppingCart className="h-5 w-5" />
-          {totalItems > 0 && (
-            <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
-              {totalItems}
+        <Button
+          variant="outline"
+          size="icon"
+          className="relative border-border hover:border-primary hover:text-primary"
+          aria-label={`Cart (${itemCount} items)`}
+        >
+          <ShoppingCart className="h-4 w-4" />
+          {itemCount > 0 && (
+            <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-[10px] bg-primary text-primary-foreground border-0">
+              {itemCount > 9 ? "9+" : itemCount}
             </Badge>
           )}
         </Button>
       </SheetTrigger>
-      
-      <SheetContent className="w-full sm:max-w-lg flex flex-col h-full">
-        <SheetHeader className="flex-shrink-0">
-          <SheetTitle>Shopping Cart</SheetTitle>
-          <SheetDescription>
-            {totalItems === 0 ? "Your cart is empty" : `${totalItems} item${totalItems !== 1 ? 's' : ''} in your cart`}
-          </SheetDescription>
+
+      <SheetContent className="w-full sm:max-w-md flex flex-col h-full bg-card border-border p-0">
+        {/* Header */}
+        <SheetHeader className="px-5 py-4 border-b border-border shrink-0">
+          <div className="flex items-center justify-between">
+            <SheetTitle className="font-mono text-sm tracking-wide uppercase">
+              Cart
+              {itemCount > 0 && (
+                <span className="ml-2 font-mono text-xs text-muted-foreground">
+                  ({itemCount} {itemCount === 1 ? "item" : "items"})
+                </span>
+              )}
+            </SheetTitle>
+          </div>
         </SheetHeader>
-        
-        <div className="flex flex-col flex-1 pt-6 min-h-0">
+
+        <div className="flex flex-col flex-1 overflow-hidden">
           {items.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">Your cart is empty</p>
+            /* Empty state */
+            <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8 text-center">
+              <div className="p-4 bg-secondary rounded-sm">
+                <ShoppingCart className="h-8 w-8 text-muted-foreground" />
               </div>
+              <div>
+                <p className="font-medium text-foreground">Your cart is empty</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Build your solar system
+                </p>
+              </div>
+              <Button
+                asChild
+                className="btn-primary-glow mt-2"
+                onClick={() => setIsOpen(false)}
+              >
+                <Link to="/products">Shop Systems</Link>
+              </Button>
             </div>
           ) : (
             <>
-              <div className="flex-1 overflow-y-auto pr-2 min-h-0">
-                <div className="space-y-4">
-                  {items.map((item) => (
-                    <div key={item.variantId} className="flex gap-4 p-2">
-                      <div className="w-16 h-16 bg-secondary/20 rounded-md overflow-hidden flex-shrink-0">
-                        {item.product.node.images?.edges?.[0]?.node && (
-                          <img
-                            src={item.product.node.images.edges[0].node.url}
-                            alt={item.product.node.title}
-                            className="w-full h-full object-cover"
-                          />
-                        )}
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium truncate">{item.product.node.title}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {item.selectedOptions.map(option => option.value).join(' • ')}
+              {/* Free freight progress */}
+              {freeFreightRemaining > 0 && (
+                <div className="px-5 py-3 bg-secondary/60 border-b border-border shrink-0">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5">
+                    <Truck size={12} className="text-primary shrink-0" />
+                    <span>
+                      Add{" "}
+                      <span className="font-mono font-semibold text-foreground">
+                        {formatPrice(freeFreightRemaining)}
+                      </span>{" "}
+                      more for free freight
+                    </span>
+                  </div>
+                  <div className="w-full h-1 bg-border rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary transition-all"
+                      style={{
+                        width: `${Math.min(100, (subtotal / FREE_FREIGHT_THRESHOLD) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+              {freeFreightRemaining === 0 && (
+                <div className="px-5 py-2 bg-primary/10 border-b border-primary/20 shrink-0">
+                  <p className="text-xs text-primary flex items-center gap-1.5">
+                    <Truck size={11} />
+                    Free freight unlocked on your order!
+                  </p>
+                </div>
+              )}
+
+              {/* Items list */}
+              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 min-h-0">
+                {items.map((item) => (
+                  <div
+                    key={item.product.id}
+                    className="flex gap-3 pb-4 border-b border-border last:border-0"
+                  >
+                    {/* Image placeholder */}
+                    <div className="w-16 h-16 bg-secondary shrink-0 flex items-center justify-center rounded-sm overflow-hidden">
+                      <Zap size={20} className="text-muted-foreground" />
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground line-clamp-2 leading-snug">
+                        {item.product.name}
+                      </p>
+                      <p className="font-mono text-sm font-semibold text-foreground mt-1">
+                        {formatPrice(item.product.price)}
+                      </p>
+                      {item.product.freightNote && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          Freight shipping
                         </p>
-                        <p className="font-semibold">
-                          {item.price.currencyCode} ${parseFloat(item.price.amount).toFixed(2)}
-                        </p>
-                      </div>
-                      
-                      <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={() => removeItem(item.variantId)}
+                      )}
+                    </div>
+
+                    <div className="flex flex-col items-end justify-between shrink-0">
+                      <button
+                        onClick={() => removeItem(item.product.id)}
+                        className="text-muted-foreground hover:text-destructive transition-colors p-0.5"
+                        aria-label="Remove item"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+
+                      <div className="flex items-center gap-1.5 border border-border rounded-sm">
+                        <button
+                          onClick={() => updateQty(item.product.id, item.qty - 1)}
+                          className="p-1 hover:text-primary transition-colors"
+                          aria-label="Decrease quantity"
                         >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                        
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => updateQuantity(item.variantId, item.quantity - 1)}
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-8 text-center text-sm">{item.quantity}</span>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => updateQuantity(item.variantId, item.quantity + 1)}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
+                          <Minus size={11} />
+                        </button>
+                        <span className="font-mono text-xs w-5 text-center">{item.qty}</span>
+                        <button
+                          onClick={() => updateQty(item.product.id, item.qty + 1)}
+                          className="p-1 hover:text-primary transition-colors"
+                          aria-label="Increase quantity"
+                        >
+                          <Plus size={11} />
+                        </button>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </div>
-              
-              <div className="flex-shrink-0 space-y-4 pt-4 border-t bg-background">
-                <div className="flex justify-between items-center">
-                  <span className="text-lg font-semibold">Total</span>
-                  <span className="text-xl font-bold">
-                    {items[0]?.price.currencyCode || 'USD'} ${totalPrice.toFixed(2)}
+
+              {/* Footer */}
+              <div className="shrink-0 px-5 py-4 border-t border-border space-y-3 bg-card">
+                <div className="flex justify-between items-baseline">
+                  <span className="text-sm text-muted-foreground">Subtotal</span>
+                  <span className="font-mono font-bold text-lg text-foreground">
+                    {formatPrice(subtotal)}
                   </span>
                 </div>
-                
-                <Button 
-                  onClick={handleCheckout}
-                  className="w-full" 
-                  size="lg"
-                  disabled={items.length === 0 || isLoading}
+                <p className="text-xs text-muted-foreground">
+                  Shipping & tax calculated at checkout.
+                </p>
+
+                <Button
+                  asChild
+                  className="w-full btn-primary-glow h-11 font-semibold tracking-wide"
+                  onClick={() => setIsOpen(false)}
                 >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Creating Checkout...
-                    </>
-                  ) : (
-                    <>
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      Checkout with Shopify
-                    </>
-                  )}
+                  <Link to="/cart">
+                    View Cart & Checkout <ArrowRight className="ml-2" size={15} />
+                  </Link>
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  className="w-full text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => setIsOpen(false)}
+                  asChild
+                >
+                  <Link to="/financing">Apply for 0% Financing</Link>
                 </Button>
               </div>
             </>

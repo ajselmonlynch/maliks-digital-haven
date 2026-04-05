@@ -1,275 +1,156 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { toast } from 'sonner';
+import type { Product } from '@/lib/products';
 
-export interface ShopifyProduct {
-  node: {
-    id: string;
-    title: string;
-    description: string;
-    handle: string;
-    priceRange: {
-      minVariantPrice: {
-        amount: string;
-        currencyCode: string;
-      };
-    };
-    images: {
-      edges: Array<{
-        node: {
-          url: string;
-          altText: string | null;
-        };
-      }>;
-    };
-    variants: {
-      edges: Array<{
-        node: {
-          id: string;
-          title: string;
-          price: {
-            amount: string;
-            currencyCode: string;
-          };
-          availableForSale: boolean;
-          selectedOptions: Array<{
-            name: string;
-            value: string;
-          }>;
-        };
-      }>;
-    };
-    options: Array<{
-      name: string;
-      values: string[];
-    }>;
-  };
-}
+// ─── TYPES ───────────────────────────────────────────────────────────────────
 
-export interface CartItem {
-  product: ShopifyProduct;
-  variantId: string;
-  variantTitle: string;
-  price: {
-    amount: string;
-    currencyCode: string;
-  };
-  quantity: number;
-  selectedOptions: Array<{
-    name: string;
-    value: string;
-  }>;
+export interface CartLineItem {
+  product: Product;
+  qty: number;
 }
 
 interface CartStore {
-  items: CartItem[];
-  cartId: string | null;
-  checkoutUrl: string | null;
-  isLoading: boolean;
-  
-  addItem: (item: CartItem) => void;
-  updateQuantity: (variantId: string, quantity: number) => void;
-  removeItem: (variantId: string) => void;
+  items: CartLineItem[];
+  abandonedAt: number | null;       // timestamp — drives recovery emails
+  recoveryDismissed: boolean;
+
+  addItem: (product: Product, qty?: number) => void;
+  updateQty: (productId: string, qty: number) => void;
+  removeItem: (productId: string) => void;
   clearCart: () => void;
-  setCartId: (cartId: string) => void;
-  setCheckoutUrl: (url: string) => void;
-  setLoading: (loading: boolean) => void;
-  createCheckout: () => Promise<void>;
+  dismissRecovery: () => void;
+
+  // Derived helpers (computed inline in components, but exposed for convenience)
+  subtotal: () => number;
+  itemCount: () => number;
 }
 
-const SHOPIFY_STORE_PERMANENT_DOMAIN = 'maliks-digital-haven-6tste.myshopify.com';
-const SHOPIFY_API_VERSION = '2025-07';
-const SHOPIFY_STOREFRONT_URL = `https://${SHOPIFY_STORE_PERMANENT_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json`;
-const SHOPIFY_STOREFRONT_TOKEN = '4cee1a665fa0d673b7d2aad04a6c3872';
+// ─── ABANDONED CART LOGIC ────────────────────────────────────────────────────
+//
+// Strategy: when a cart has items but no checkout action for 15 minutes,
+// flag it as "abandoned" (abandonedAt timestamp set). A separate hook
+// `useAbandonedCartRecovery` reads this flag and can:
+//   • Show an in-app recovery banner/toast
+//   • POST to a recovery email webhook (Klaviyo, Mailchimp, etc.)
+//
+// The `abandonedAt` value is persisted in localStorage so it survives
+// page refreshes. Clear it on successful checkout or cart clear.
 
-async function storefrontApiRequest(query: string, variables: any = {}) {
-  const response = await fetch(SHOPIFY_STOREFRONT_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Shopify-Storefront-Access-Token': SHOPIFY_STOREFRONT_TOKEN
-    },
-    body: JSON.stringify({
-      query,
-      variables,
-    }),
-  });
+const ABANDONED_THRESHOLD_MS = 15 * 60 * 1000; // 15 minutes
 
-  if (response.status === 402) {
-    toast.error("Shopify: Payment required", {
-      description: "Shopify API access requires an active Shopify billing plan. Visit https://admin.shopify.com to upgrade.",
-    });
-    throw new Error('Payment required');
-  }
-
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-
-  const data = await response.json();
-  
-  if (data.errors) {
-    throw new Error(`Error calling Shopify: ${data.errors.map((e: any) => e.message).join(', ')}`);
-  }
-
-  return data;
-}
-
-const CART_CREATE_MUTATION = `
-  mutation cartCreate($input: CartInput!) {
-    cartCreate(input: $input) {
-      cart {
-        id
-        checkoutUrl
-        totalQuantity
-        cost {
-          totalAmount {
-            amount
-            currencyCode
-          }
-        }
-        lines(first: 100) {
-          edges {
-            node {
-              id
-              quantity
-              merchandise {
-                ... on ProductVariant {
-                  id
-                  title
-                  price {
-                    amount
-                    currencyCode
-                  }
-                  product {
-                    title
-                    handle
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-      userErrors {
-        field
-        message
-      }
-    }
-  }
-`;
-
-async function createStorefrontCheckout(items: CartItem[]): Promise<string> {
-  try {
-    const lines = items.map(item => ({
-      quantity: item.quantity,
-      merchandiseId: item.variantId,
-    }));
-
-    const cartData = await storefrontApiRequest(CART_CREATE_MUTATION, {
-      input: {
-        lines,
-      },
-    });
-
-    if (cartData.data.cartCreate.userErrors.length > 0) {
-      throw new Error(`Cart creation failed: ${cartData.data.cartCreate.userErrors.map((e: any) => e.message).join(', ')}`);
-    }
-
-    const cart = cartData.data.cartCreate.cart;
-    
-    if (!cart.checkoutUrl) {
-      throw new Error('No checkout URL returned from Shopify');
-    }
-
-    const url = new URL(cart.checkoutUrl);
-    url.searchParams.set('channel', 'online_store');
-    const checkoutUrl = url.toString();
-    return checkoutUrl;
-  } catch (error) {
-    console.error('Error creating storefront checkout:', error);
-    throw error;
-  }
-}
+// ─── STORE ───────────────────────────────────────────────────────────────────
 
 export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
       items: [],
-      cartId: null,
-      checkoutUrl: null,
-      isLoading: false,
+      abandonedAt: null,
+      recoveryDismissed: false,
 
-      addItem: (item) => {
+      addItem: (product, qty = 1) => {
         const { items } = get();
-        const existingItem = items.find(i => i.variantId === item.variantId);
-        
-        if (existingItem) {
+        const existing = items.find((i) => i.product.id === product.id);
+
+        if (existing) {
           set({
-            items: items.map(i =>
-              i.variantId === item.variantId
-                ? { ...i, quantity: i.quantity + item.quantity }
-                : i
-            )
+            items: items.map((i) =>
+              i.product.id === product.id ? { ...i, qty: i.qty + qty } : i
+            ),
+            abandonedAt: null, // reset abandoned timer on activity
           });
         } else {
-          set({ items: [...items, item] });
+          set({
+            items: [...items, { product, qty }],
+            abandonedAt: null,
+          });
         }
-        
-        toast.success('Added to cart', {
-          description: `${item.product.node.title} has been added to your cart.`,
+
+        toast.success(`Added to cart`, {
+          description: product.name,
         });
+
+        // Schedule abandoned cart flag after threshold
+        scheduleAbandonedFlag();
       },
 
-      updateQuantity: (variantId, quantity) => {
-        if (quantity <= 0) {
-          get().removeItem(variantId);
+      updateQty: (productId, qty) => {
+        if (qty <= 0) {
+          get().removeItem(productId);
           return;
         }
-        
         set({
-          items: get().items.map(item =>
-            item.variantId === variantId ? { ...item, quantity } : item
-          )
+          items: get().items.map((i) =>
+            i.product.id === productId ? { ...i, qty } : i
+          ),
+          abandonedAt: null,
         });
+        scheduleAbandonedFlag();
       },
 
-      removeItem: (variantId) => {
+      removeItem: (productId) => {
+        const next = get().items.filter((i) => i.product.id !== productId);
         set({
-          items: get().items.filter(item => item.variantId !== variantId)
+          items: next,
+          abandonedAt: next.length > 0 ? get().abandonedAt : null,
         });
-        toast.success('Item removed from cart');
       },
 
       clearCart: () => {
-        set({ items: [], cartId: null, checkoutUrl: null });
+        set({ items: [], abandonedAt: null, recoveryDismissed: false });
       },
 
-      setCartId: (cartId) => set({ cartId }),
-      setCheckoutUrl: (checkoutUrl) => set({ checkoutUrl }),
-      setLoading: (isLoading) => set({ isLoading }),
+      dismissRecovery: () => {
+        set({ recoveryDismissed: true, abandonedAt: null });
+      },
 
-      createCheckout: async () => {
-        const { items, setLoading, setCheckoutUrl } = get();
-        if (items.length === 0) return;
+      subtotal: () =>
+        get().items.reduce((acc, i) => acc + i.product.price * i.qty, 0),
 
-        setLoading(true);
-        try {
-          const checkoutUrl = await createStorefrontCheckout(items);
-          setCheckoutUrl(checkoutUrl);
-        } catch (error) {
-          console.error('Failed to create checkout:', error);
-          toast.error('Failed to create checkout', {
-            description: 'Please try again later.',
-          });
-        } finally {
-          setLoading(false);
-        }
-      }
+      itemCount: () =>
+        get().items.reduce((acc, i) => acc + i.qty, 0),
     }),
     {
-      name: 'shopify-cart',
+      name: 'solarcore-cart-v2',
       storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        items: state.items,
+        abandonedAt: state.abandonedAt,
+        recoveryDismissed: state.recoveryDismissed,
+      }),
     }
   )
 );
+
+// ─── ABANDONED CART SCHEDULER ─────────────────────────────────────────────────
+
+let abandonTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleAbandonedFlag() {
+  if (abandonTimer) clearTimeout(abandonTimer);
+  abandonTimer = setTimeout(() => {
+    const { items } = useCartStore.getState();
+    if (items.length > 0) {
+      useCartStore.setState({ abandonedAt: Date.now() });
+      // In production: fire webhook to Klaviyo/Mailchimp here
+      // Example: sendAbandonedCartWebhook(items);
+    }
+  }, ABANDONED_THRESHOLD_MS);
+}
+
+// ─── RECOVERY HOOK ────────────────────────────────────────────────────────────
+// Use this in your root layout or _app to show recovery prompts.
+
+export function useAbandonedCartRecovery() {
+  const { abandonedAt, items, recoveryDismissed, dismissRecovery } = useCartStore();
+
+  const isAbandoned =
+    !!abandonedAt &&
+    !recoveryDismissed &&
+    items.length > 0 &&
+    Date.now() - abandonedAt >= ABANDONED_THRESHOLD_MS;
+
+  const subtotal = items.reduce((acc, i) => acc + i.product.price * i.qty, 0);
+
+  return { isAbandoned, items, subtotal, dismissRecovery };
+}

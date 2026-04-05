@@ -1,219 +1,221 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import ConsultationCTA from "@/components/ConsultationCTA";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useNavigate } from "react-router-dom";
-import { useCartStore, ShopifyProduct } from "@/stores/cartStore";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, Zap, Tag, SlidersHorizontal, X } from "lucide-react";
+import { PRODUCTS, formatPrice, type ProductCategory } from "@/lib/products";
+import { useCartStore } from "@/stores/cartStore";
+import { getSEOMeta } from "@/lib/seo";
 
-const SHOPIFY_STORE_PERMANENT_DOMAIN = 'maliks-digital-haven-6tste.myshopify.com';
-const SHOPIFY_API_VERSION = '2025-07';
-const SHOPIFY_STOREFRONT_URL = `https://${SHOPIFY_STORE_PERMANENT_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json`;
-const SHOPIFY_STOREFRONT_TOKEN = '4cee1a665fa0d673b7d2aad04a6c3872';
+const CATEGORY_FILTERS: { label: string; value: string }[] = [
+  { label: "All Products", value: "all" },
+  { label: "Solar Bundles", value: "solar-backup/bundles" },
+  { label: "Battery Systems", value: "solar-backup/battery-systems" },
+  { label: "Solar Panels", value: "solar-backup/solar-panels" },
+  { label: "Inverters", value: "solar-backup/inverters" },
+  { label: "LED Grow Lights", value: "grow-automation/led-systems" },
+  { label: "Climate Control", value: "grow-automation/climate" },
+  { label: "Irrigation", value: "grow-automation/irrigation" },
+  { label: "HVAC & Air", value: "grow-automation/hvac" },
+];
 
-const STOREFRONT_QUERY = `
-  query GetProducts($first: Int!) {
-    products(first: $first) {
-      edges {
-        node {
-          id
-          title
-          description
-          handle
-          priceRange {
-            minVariantPrice {
-              amount
-              currencyCode
-            }
-          }
-          images(first: 5) {
-            edges {
-              node {
-                url
-                altText
-              }
-            }
-          }
-          variants(first: 10) {
-            edges {
-              node {
-                id
-                title
-                price {
-                  amount
-                  currencyCode
-                }
-                availableForSale
-                selectedOptions {
-                  name
-                  value
-                }
-              }
-            }
-          }
-          options {
-            name
-            values
-          }
-        }
-      }
-    }
-  }
-`;
-
-async function storefrontApiRequest(query: string, variables: any = {}) {
-  const response = await fetch(SHOPIFY_STOREFRONT_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Shopify-Storefront-Access-Token': SHOPIFY_STOREFRONT_TOKEN
-    },
-    body: JSON.stringify({
-      query,
-      variables,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-
-  const data = await response.json();
-  
-  if (data.errors) {
-    throw new Error(`Error calling Shopify: ${data.errors.map((e: any) => e.message).join(', ')}`);
-  }
-
-  return data;
-}
+const SORT_OPTIONS = [
+  { label: "Featured", value: "featured" },
+  { label: "Price: Low to High", value: "price-asc" },
+  { label: "Price: High to Low", value: "price-desc" },
+  { label: "Name A–Z", value: "name" },
+];
 
 const Products = () => {
-  const [products, setProducts] = useState<ShopifyProduct[]>([]);
-  const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
-  const addItem = useCartStore(state => state.addItem);
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("featured");
+  const addItem = useCartStore((s) => s.addItem);
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const data = await storefrontApiRequest(STOREFRONT_QUERY, { first: 20 });
-        setProducts(data.data.products.edges);
-      } catch (error) {
-        console.error('Error fetching products:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProducts();
+    const meta = getSEOMeta("products");
+    document.title = meta.title;
   }, []);
 
-  const handleAddToCart = (product: ShopifyProduct) => {
-    const variant = product.node.variants.edges[0].node;
-    addItem({
-      product,
-      variantId: variant.id,
-      variantTitle: variant.title,
-      price: variant.price,
-      quantity: 1,
-      selectedOptions: variant.selectedOptions
-    });
-  };
+  const filtered = PRODUCTS.filter((p) =>
+    activeFilter === "all" ? true : p.category === activeFilter
+  );
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortBy === "price-asc") return a.price - b.price;
+    if (sortBy === "price-desc") return b.price - a.price;
+    if (sortBy === "name") return a.name.localeCompare(b.name);
+    // featured: featured first
+    return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
+  });
+
+  const activeLabel =
+    CATEGORY_FILTERS.find((f) => f.value === activeFilter)?.label ?? "All Products";
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen bg-background">
       <Navigation />
-      
-      <main className="flex-1">
-        <section className="py-16 px-4 bg-gradient-to-b from-background to-secondary/20">
-          <div className="container mx-auto max-w-6xl text-center">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">
-              Digital Products
-            </h1>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Explore our curated collection of digital products designed to inspire and empower.
-            </p>
-          </div>
-        </section>
+      <ConsultationCTA />
 
-        <section className="py-16 px-4">
-          <div className="container mx-auto max-w-6xl">
-            {loading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <Card key={i}>
-                    <CardHeader>
-                      <Skeleton className="h-48 w-full mb-4" />
-                      <Skeleton className="h-6 w-3/4" />
-                    </CardHeader>
-                    <CardContent>
-                      <Skeleton className="h-4 w-full mb-2" />
-                      <Skeleton className="h-4 w-5/6" />
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : products.length === 0 ? (
-              <div className="text-center py-16">
-                <ShoppingCart className="h-24 w-24 text-muted-foreground mx-auto mb-6" />
-                <h2 className="text-2xl font-semibold mb-4">No products found</h2>
-                <p className="text-muted-foreground mb-6">
-                  We don't have any products yet. Create your first product by telling me what you'd like to sell!
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Example: "Create a product called 'Premium T-Shirt' for $29.99"
+      <div className="pt-28 pb-20">
+        <div className="container mx-auto px-6">
+          {/* Header */}
+          <div className="mb-10">
+            <span className="section-label mb-3 block">Catalog</span>
+            <div className="flex items-end justify-between gap-4 flex-wrap">
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold text-foreground">All Systems</h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {sorted.length} products · {activeLabel}
                 </p>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {products.map((product) => (
-                  <Card 
-                    key={product.node.id} 
-                    className="flex flex-col cursor-pointer hover:shadow-lg transition-shadow"
-                    onClick={() => navigate(`/product/${product.node.handle}`)}
-                  >
-                    {product.node.images.edges[0] && (
-                      <div className="aspect-square overflow-hidden rounded-t-lg">
-                        <img
-                          src={product.node.images.edges[0].node.url}
-                          alt={product.node.images.edges[0].node.altText || product.node.title}
-                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                        />
-                      </div>
-                    )}
-                    <CardHeader>
-                      <CardTitle>{product.node.title}</CardTitle>
-                      <CardDescription className="line-clamp-2">
-                        {product.node.description}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-1">
-                      <p className="text-2xl font-bold">
-                        {product.node.priceRange.minVariantPrice.currencyCode} $
-                        {parseFloat(product.node.priceRange.minVariantPrice.amount).toFixed(2)}
-                      </p>
-                    </CardContent>
-                    <CardFooter className="flex gap-2">
-                      <Button 
-                        className="flex-1"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleAddToCart(product);
-                        }}
-                      >
-                        <ShoppingCart className="w-4 h-4 mr-2" />
-                        Add to Cart
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))}
+
+              {/* Sort */}
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal size={13} className="text-muted-foreground" />
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="bg-card border border-border text-sm text-foreground px-3 py-1.5 rounded-sm focus:outline-none focus:border-primary font-mono"
+                >
+                  {SORT_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
               </div>
-            )}
+            </div>
           </div>
-        </section>
-      </main>
+
+          <div className="flex flex-col lg:flex-row gap-8">
+            {/* ── Sidebar Filters ──────────────────────────────────── */}
+            <aside className="lg:w-48 shrink-0">
+              <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground mb-3">
+                Category
+              </p>
+              <ul className="space-y-0.5">
+                {CATEGORY_FILTERS.map((f) => (
+                  <li key={f.value}>
+                    <button
+                      onClick={() => setActiveFilter(f.value)}
+                      className={`w-full text-left text-sm px-3 py-2 rounded-sm transition-colors ${
+                        activeFilter === f.value
+                          ? "bg-primary/10 text-primary font-semibold"
+                          : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+
+              {activeFilter !== "all" && (
+                <button
+                  onClick={() => setActiveFilter("all")}
+                  className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+                >
+                  <X size={11} /> Clear filter
+                </button>
+              )}
+            </aside>
+
+            {/* ── Products Grid ─────────────────────────────────────── */}
+            <div className="flex-1">
+              {sorted.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
+                  <Zap size={32} className="text-border" />
+                  <p className="text-muted-foreground">No products in this category yet.</p>
+                  <Button variant="outline" onClick={() => setActiveFilter("all")}>
+                    View All Products
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                  {sorted.map((product) => (
+                    <div
+                      key={product.id}
+                      className="group flex flex-col border border-border bg-card rounded-sm overflow-hidden card-hover"
+                    >
+                      {/* Image */}
+                      <div className="relative aspect-[4/3] bg-secondary flex items-center justify-center overflow-hidden">
+                        <Zap size={40} className="text-border group-hover:text-primary/25 transition-colors" />
+                        {product.badge && (
+                          <span className="absolute top-3 left-3 font-mono text-[10px] uppercase px-2 py-0.5 bg-primary text-primary-foreground">
+                            {product.badge}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Body */}
+                      <div className="flex flex-col flex-1 p-4 gap-2.5">
+                        <div>
+                          <span className="font-mono text-[10px] tracking-[0.15em] uppercase text-muted-foreground">
+                            {product.brand}
+                          </span>
+                          <h3 className="text-sm font-semibold text-foreground mt-0.5 leading-snug">
+                            {product.name}
+                          </h3>
+                        </div>
+
+                        {/* Key specs */}
+                        <div className="flex flex-wrap gap-1">
+                          {product.specs
+                            .filter((s) => s.highlight)
+                            .slice(0, 2)
+                            .map((spec) => (
+                              <span key={spec.label} className="spec-badge">{spec.value}</span>
+                            ))}
+                        </div>
+
+                        {/* Price */}
+                        <div className="flex items-baseline gap-2 mt-auto">
+                          <span className="font-mono font-bold text-foreground">
+                            {formatPrice(product.price)}
+                          </span>
+                          {product.compareAtPrice && (
+                            <span className="font-mono text-xs text-muted-foreground line-through">
+                              {formatPrice(product.compareAtPrice)}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Financing */}
+                        {product.price >= 2000 && (
+                          <p className="font-mono text-[10px] text-muted-foreground flex items-center gap-1">
+                            <Tag size={9} className="text-primary" />
+                            From ${Math.ceil(product.price / 60)}/mo · 0% APR
+                          </p>
+                        )}
+
+                        {/* Actions */}
+                        <div className="flex gap-2 pt-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 text-xs border-border hover:border-primary hover:text-primary h-8"
+                            asChild
+                          >
+                            <Link to={`/product/${product.handle}`}>Details</Link>
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="flex-1 text-xs btn-primary-glow h-8"
+                            onClick={() => addItem(product)}
+                          >
+                            <ShoppingCart size={12} className="mr-1" />
+                            Add
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
 
       <Footer />
     </div>

@@ -1,276 +1,257 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
+import TechSpecsTable from "@/components/TechSpecsTable";
+import FinancingWidget from "@/components/FinancingWidget";
+import ComparisonModule from "@/components/ComparisonModule";
+import ConsultationCTA from "@/components/ConsultationCTA";
+import UpsellEngine from "@/components/UpsellEngine";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useCartStore, ShopifyProduct } from "@/stores/cartStore";
-import { ShoppingCart, ArrowLeft } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-const SHOPIFY_STORE_PERMANENT_DOMAIN = 'maliks-digital-haven-6tste.myshopify.com';
-const SHOPIFY_API_VERSION = '2025-07';
-const SHOPIFY_STOREFRONT_URL = `https://${SHOPIFY_STORE_PERMANENT_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json`;
-const SHOPIFY_STOREFRONT_TOKEN = '4cee1a665fa0d673b7d2aad04a6c3872';
-
-const PRODUCT_QUERY = `
-  query GetProduct($handle: String!) {
-    productByHandle(handle: $handle) {
-      id
-      title
-      description
-      handle
-      priceRange {
-        minVariantPrice {
-          amount
-          currencyCode
-        }
-      }
-      images(first: 5) {
-        edges {
-          node {
-            url
-            altText
-          }
-        }
-      }
-      variants(first: 10) {
-        edges {
-          node {
-            id
-            title
-            price {
-              amount
-              currencyCode
-            }
-            availableForSale
-            selectedOptions {
-              name
-              value
-            }
-          }
-        }
-      }
-      options {
-        name
-        values
-      }
-    }
-  }
-`;
-
-async function storefrontApiRequest(query: string, variables: any = {}) {
-  const response = await fetch(SHOPIFY_STOREFRONT_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Shopify-Storefront-Access-Token': SHOPIFY_STOREFRONT_TOKEN
-    },
-    body: JSON.stringify({
-      query,
-      variables,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-
-  const data = await response.json();
-  
-  if (data.errors) {
-    throw new Error(`Error calling Shopify: ${data.errors.map((e: any) => e.message).join(', ')}`);
-  }
-
-  return data;
-}
+import {
+  ArrowLeft, ShoppingCart, Truck, Shield, Award, Zap,
+  Phone, CheckCircle, Tag
+} from "lucide-react";
+import { getProductByHandle, getUpsellProducts, formatPrice } from "@/lib/products";
+import { useCartStore } from "@/stores/cartStore";
+import { getProductSEOMeta } from "@/lib/seo";
 
 const ProductDetail = () => {
-  const { handle } = useParams();
+  const { handle } = useParams<{ handle: string }>();
   const navigate = useNavigate();
-  const [product, setProduct] = useState<ShopifyProduct | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [selectedVariant, setSelectedVariant] = useState<any>(null);
-  const [selectedImage, setSelectedImage] = useState(0);
-  const addItem = useCartStore(state => state.addItem);
+  const addItem = useCartStore((s) => s.addItem);
+
+  const product = handle ? getProductByHandle(handle) : undefined;
 
   useEffect(() => {
-    const fetchProduct = async () => {
-      if (!handle) return;
-      
-      try {
-        const data = await storefrontApiRequest(PRODUCT_QUERY, { handle });
-        if (data.data.productByHandle) {
-          const productData = { node: data.data.productByHandle };
-          setProduct(productData);
-          setSelectedVariant(productData.node.variants.edges[0].node);
-        }
-      } catch (error) {
-        console.error('Error fetching product:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProduct();
-  }, [handle]);
-
-  const handleAddToCart = () => {
-    if (!product || !selectedVariant) return;
-    
-    addItem({
-      product,
-      variantId: selectedVariant.id,
-      variantTitle: selectedVariant.title,
-      price: selectedVariant.price,
-      quantity: 1,
-      selectedOptions: selectedVariant.selectedOptions
-    });
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Navigation />
-        <main className="flex-1 py-16 px-4">
-          <div className="container mx-auto max-w-6xl">
-            <Skeleton className="h-8 w-32 mb-8" />
-            <div className="grid md:grid-cols-2 gap-12">
-              <Skeleton className="aspect-square w-full" />
-              <div className="space-y-4">
-                <Skeleton className="h-12 w-3/4" />
-                <Skeleton className="h-8 w-1/4" />
-                <Skeleton className="h-24 w-full" />
-                <Skeleton className="h-12 w-full" />
-              </div>
-            </div>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
+    if (!product) return;
+    const meta = getProductSEOMeta(product.name, product.category, product.price);
+    document.title = meta.title;
+    let desc = document.querySelector('meta[name="description"]');
+    if (!desc) {
+      desc = document.createElement("meta");
+      (desc as HTMLMetaElement).name = "description";
+      document.head.appendChild(desc);
+    }
+    (desc as HTMLMetaElement).content = meta.description;
+  }, [product]);
 
   if (!product) {
     return (
-      <div className="min-h-screen flex flex-col">
-        <Navigation />
-        <main className="flex-1 py-16 px-4">
-          <div className="container mx-auto max-w-6xl text-center">
-            <h1 className="text-3xl font-bold mb-4">Product not found</h1>
-            <Button onClick={() => navigate('/products')}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground mb-4">Product not found.</p>
+          <Button asChild variant="outline">
+            <Link to="/products">
+              <ArrowLeft size={14} className="mr-2" />
               Back to Products
-            </Button>
-          </div>
-        </main>
-        <Footer />
+            </Link>
+          </Button>
+        </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen flex flex-col">
-      <Navigation />
-      
-      <main className="flex-1 py-16 px-4">
-        <div className="container mx-auto max-w-6xl">
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate('/products')}
-            className="mb-8"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Products
-          </Button>
+  const upsells = getUpsellProducts(product.upsells);
+  const monthly = Math.ceil(product.price / 60);
 
-          <div className="grid md:grid-cols-2 gap-12">
-            <div className="space-y-4">
-              <div className="aspect-square overflow-hidden rounded-lg bg-secondary/20">
-                {product.node.images.edges[selectedImage] && (
-                  <img
-                    src={product.node.images.edges[selectedImage].node.url}
-                    alt={product.node.images.edges[selectedImage].node.altText || product.node.title}
-                    className="w-full h-full object-cover"
-                  />
+  return (
+    <div className="min-h-screen bg-background">
+      <Navigation />
+      <ConsultationCTA />
+
+      <div className="pt-28 pb-20">
+        <div className="container mx-auto px-6">
+          {/* Breadcrumb */}
+          <nav className="flex items-center gap-2 text-xs text-muted-foreground mb-8 font-mono">
+            <Link to="/" className="hover:text-primary transition-colors">Home</Link>
+            <span>/</span>
+            <Link to="/products" className="hover:text-primary transition-colors">Products</Link>
+            <span>/</span>
+            <span className="text-foreground">{product.name}</span>
+          </nav>
+
+          {/* Main PDP grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-16">
+            {/* Left — Image */}
+            <div>
+              <div className="aspect-[4/3] bg-card border border-border rounded-sm flex items-center justify-center relative overflow-hidden">
+                <Zap size={80} className="text-border" />
+                {product.badge && (
+                  <span className="absolute top-4 left-4 font-mono text-xs tracking-wide uppercase px-3 py-1 bg-primary text-primary-foreground">
+                    {product.badge}
+                  </span>
                 )}
               </div>
-              {product.node.images.edges.length > 1 && (
-                <div className="grid grid-cols-5 gap-2">
-                  {product.node.images.edges.map((image, index) => (
+
+              {/* Thumbnail row */}
+              {product.images.length > 1 && (
+                <div className="flex gap-2 mt-3">
+                  {product.images.map((_, i) => (
                     <button
-                      key={index}
-                      onClick={() => setSelectedImage(index)}
-                      className={`aspect-square overflow-hidden rounded-md border-2 transition-colors ${
-                        selectedImage === index ? 'border-primary' : 'border-transparent'
-                      }`}
+                      key={i}
+                      className="w-16 h-16 bg-card border border-border hover:border-primary transition-colors rounded-sm flex items-center justify-center"
+                      aria-label={`Image ${i + 1}`}
                     >
-                      <img
-                        src={image.node.url}
-                        alt={image.node.altText || ''}
-                        className="w-full h-full object-cover"
-                      />
+                      <Zap size={18} className="text-border" />
                     </button>
                   ))}
                 </div>
               )}
             </div>
 
+            {/* Right — Product info */}
             <div className="space-y-6">
+              {/* Brand + SKU */}
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
+                  {product.brand}
+                </span>
+                <span className="spec-badge">SKU: {product.sku}</span>
+              </div>
+
+              {/* Name */}
               <div>
-                <h1 className="text-4xl font-bold mb-2">{product.node.title}</h1>
-                <p className="text-3xl font-bold">
-                  {selectedVariant.price.currencyCode} ${parseFloat(selectedVariant.price.amount).toFixed(2)}
+                <h1 className="text-2xl md:text-3xl font-bold text-foreground leading-tight">
+                  {product.name}
+                </h1>
+                <p className="text-muted-foreground mt-2 leading-relaxed">
+                  {product.tagline}
                 </p>
               </div>
 
-              <p className="text-muted-foreground whitespace-pre-line">
-                {product.node.description}
-              </p>
+              {/* Price */}
+              <div className="flex items-baseline gap-3">
+                <span className="font-mono text-3xl font-bold text-foreground">
+                  {formatPrice(product.price)}
+                </span>
+                {product.compareAtPrice && (
+                  <span className="font-mono text-lg text-muted-foreground line-through">
+                    {formatPrice(product.compareAtPrice)}
+                  </span>
+                )}
+                {product.compareAtPrice && (
+                  <span className="font-mono text-sm text-primary font-semibold">
+                    Save {formatPrice(product.compareAtPrice - product.price)}
+                  </span>
+                )}
+              </div>
 
-              {product.node.options.length > 0 && product.node.options[0].values.length > 1 && (
-                <div className="space-y-4">
-                  {product.node.options.map((option) => (
-                    <div key={option.name}>
-                      <label className="block text-sm font-medium mb-2">{option.name}</label>
-                      <Select
-                        value={selectedVariant.selectedOptions.find((o: any) => o.name === option.name)?.value}
-                        onValueChange={(value) => {
-                          const variant = product.node.variants.edges.find((v) =>
-                            v.node.selectedOptions.some((o) => o.name === option.name && o.value === value)
-                          );
-                          if (variant) setSelectedVariant(variant.node);
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {option.values.map((value) => (
-                            <SelectItem key={value} value={value}>
-                              {value}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  ))}
+              {/* Financing teaser */}
+              {product.price >= 2000 && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-secondary/60 border border-border rounded-sm">
+                  <Tag size={13} className="text-primary shrink-0" />
+                  <p className="text-sm text-muted-foreground">
+                    From{" "}
+                    <span className="font-mono font-bold text-foreground">
+                      ${monthly}/mo
+                    </span>{" "}
+                    · 0% APR available ·{" "}
+                    <Link to="/financing" className="text-primary hover:underline underline-offset-2">
+                      Check rate
+                    </Link>
+                  </p>
                 </div>
               )}
 
-              <Button 
-                size="lg" 
-                className="w-full"
-                onClick={handleAddToCart}
-                disabled={!selectedVariant.availableForSale}
-              >
-                <ShoppingCart className="w-5 h-5 mr-2" />
-                {selectedVariant.availableForSale ? 'Add to Cart' : 'Out of Stock'}
-              </Button>
+              {/* Key highlights */}
+              <div className="grid grid-cols-2 gap-2">
+                {product.specs
+                  .filter((s) => s.highlight)
+                  .slice(0, 4)
+                  .map((spec) => (
+                    <div
+                      key={spec.label}
+                      className="flex flex-col p-3 bg-card border border-border rounded-sm"
+                    >
+                      <span className="font-mono text-xs text-muted-foreground">{spec.label}</span>
+                      <span className="font-mono text-sm font-bold text-foreground mt-0.5">
+                        {spec.value}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+
+              {/* Add to cart */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  size="lg"
+                  className="flex-1 btn-primary-glow h-12 font-semibold tracking-wide text-base"
+                  onClick={() => addItem(product)}
+                  disabled={!product.inStock}
+                >
+                  <ShoppingCart size={17} className="mr-2" />
+                  {product.inStock ? "Add to Cart" : "Out of Stock"}
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="flex-1 sm:flex-none h-12 border-border hover:border-primary hover:text-primary font-semibold"
+                  asChild
+                >
+                  <a href="tel:+16175550199">
+                    <Phone size={15} className="mr-2" />
+                    Call an Expert
+                  </a>
+                </Button>
+              </div>
+
+              {/* Trust signals */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                {[
+                  { icon: Shield, text: product.warranty },
+                  { icon: Truck, text: product.freightNote ?? "Standard shipping" },
+                  { icon: Award, text: "Authorized Dealer" },
+                ].map((t) => (
+                  <div key={t.text} className="flex items-start gap-2">
+                    <t.icon size={13} className="text-primary mt-0.5 shrink-0" />
+                    <span className="text-xs text-muted-foreground leading-relaxed">{t.text}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* In-stock badge */}
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <CheckCircle
+                  size={13}
+                  className={product.inStock ? "text-primary" : "text-destructive"}
+                />
+                {product.inStock ? "In Stock · Usually ships within 3–5 business days" : "Currently Out of Stock"}
+              </div>
             </div>
           </div>
+
+          {/* Description */}
+          <div className="mb-12 max-w-3xl">
+            <span className="section-label mb-4 block">Product Overview</span>
+            <p className="text-muted-foreground leading-relaxed text-base">{product.description}</p>
+          </div>
+
+          {/* Technical Specs Table */}
+          <div className="mb-12">
+            <TechSpecsTable specs={product.specs} productName={product.name} />
+          </div>
+
+          {/* Financing Widget */}
+          {product.price >= 2000 && (
+            <div className="mb-12 max-w-2xl">
+              <FinancingWidget price={product.price} productName={product.name} />
+            </div>
+          )}
+
+          {/* Comparison Module */}
+          <div className="mb-12">
+            <ComparisonModule />
+          </div>
+
+          {/* Upsell Engine */}
+          {upsells.length > 0 && (
+            <div className="mb-12">
+              <UpsellEngine products={upsells} title="Frequently Bought Together" />
+            </div>
+          )}
         </div>
-      </main>
+      </div>
 
       <Footer />
     </div>

@@ -2,48 +2,57 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
+/* SolarCore Systems — "The Red Architect" Design System
+   Dark Mode · High-Tech · Authoritative · Minimalist
+   All colors MUST be HSL.
 */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Roboto+Mono:wght@400;500;600;700&display=swap');
 
 @layer base {
   :root {
-    /* Malik's Dark Luxury Theme - Bruce Wayne Aesthetic */
-    --background: 0 0% 7%;
-    --foreground: 0 0% 98%;
+    /* === THE RED ARCHITECT PALETTE === */
+    --background: 0 0% 5%;
+    --foreground: 0 0% 96%;
 
-    --card: 0 0% 10%;
-    --card-foreground: 0 0% 98%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 96%;
 
-    --popover: 0 0% 8%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 96%;
 
-    /* Gold accent - luxury, wealth, wisdom */
-    --primary: 45 100% 51%;
-    --primary-foreground: 0 0% 9%;
+    /* Signature Red — authority, power, precision */
+    --primary: 4 86% 52%;
+    --primary-foreground: 0 0% 98%;
 
-    --secondary: 0 0% 15%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 90%;
 
-    --muted: 0 0% 20%;
-    --muted-foreground: 0 0% 65%;
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 55%;
 
-    --accent: 45 100% 51%;
-    --accent-foreground: 0 0% 9%;
+    --accent: 4 86% 52%;
+    --accent-foreground: 0 0% 98%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
-    --ring: 45 100% 51%;
+    --border: 0 0% 16%;
+    --input: 0 0% 14%;
+    --ring: 4 86% 52%;
 
-    --radius: 0.25rem;
+    --radius: 0.125rem;
 
-    /* Gradient tokens for cinematic effects */
-    --gradient-hero: linear-gradient(135deg, hsl(0 0% 5%), hsl(0 0% 12%));
-    --gradient-gold: linear-gradient(135deg, hsl(45 100% 45%), hsl(45 100% 60%));
-    --glow-gold: 0 0 40px hsl(45 100% 51% / 0.3);
+    /* === DESIGN TOKENS === */
+    --gradient-hero: linear-gradient(160deg, hsl(0 0% 4%) 0%, hsl(0 0% 8%) 50%, hsl(4 30% 8%) 100%);
+    --gradient-red: linear-gradient(135deg, hsl(4 86% 42%), hsl(4 86% 58%));
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 9%), hsl(0 0% 11%));
+    --glow-red: 0 0 40px hsl(4 86% 52% / 0.35);
+    --glow-red-sm: 0 0 16px hsl(4 86% 52% / 0.25);
+    --glow-red-lg: 0 0 80px hsl(4 86% 52% / 0.20);
+
+    /* Technical grid overlay */
+    --grid-color: hsl(0 0% 100% / 0.03);
   }
 }
 
@@ -52,7 +61,64 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Technical mono for specs & data */
+  .font-mono {
+    font-family: 'Roboto Mono', monospace;
+  }
+}
+
+@layer components {
+  /* Architectural grid background */
+  .bg-grid {
+    background-image:
+      linear-gradient(var(--grid-color) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+
+  /* Red glow button */
+  .btn-primary-glow {
+    @apply bg-primary text-primary-foreground font-semibold tracking-wide;
+    box-shadow: var(--glow-red-sm);
+    transition: all 0.2s ease;
+  }
+  .btn-primary-glow:hover {
+    box-shadow: var(--glow-red);
+    transform: translateY(-1px);
+  }
+
+  /* Technical spec badge */
+  .spec-badge {
+    @apply font-mono text-xs bg-secondary border border-border px-2 py-0.5 text-muted-foreground;
+  }
+
+  /* Red accent line */
+  .accent-line {
+    @apply block w-10 h-0.5 bg-primary;
+  }
+
+  /* Subtle card hover */
+  .card-hover {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .card-hover:hover {
+    border-color: hsl(var(--primary) / 0.5);
+    box-shadow: 0 4px 32px hsl(0 0% 0% / 0.4);
+  }
+
+  /* Section label */
+  .section-label {
+    @apply font-mono text-xs tracking-[0.2em] uppercase text-primary;
   }
 }
