@@ -23,7 +23,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter basename="/maliks-digital-haven">
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/journal" element={<Journal />} />
