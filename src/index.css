@@ -1,49 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
-
 @layer base {
   :root {
-    /* Malik's Dark Luxury Theme - Bruce Wayne Aesthetic */
-    --background: 0 0% 7%;
-    --foreground: 0 0% 98%;
+    --background: 0 0% 8%;
+    --foreground: 0 0% 95%;
 
-    --card: 0 0% 10%;
-    --card-foreground: 0 0% 98%;
+    --card: 0 0% 11%;
+    --card-foreground: 0 0% 95%;
 
-    --popover: 0 0% 8%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 0 0% 11%;
+    --popover-foreground: 0 0% 95%;
 
-    /* Gold accent - luxury, wealth, wisdom */
-    --primary: 45 100% 51%;
-    --primary-foreground: 0 0% 9%;
+    --primary: 51 91% 61%;
+    --primary-foreground: 0 0% 8%;
 
     --secondary: 0 0% 15%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary-foreground: 0 0% 95%;
 
-    --muted: 0 0% 20%;
-    --muted-foreground: 0 0% 65%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 60%;
 
-    --accent: 45 100% 51%;
-    --accent-foreground: 0 0% 9%;
+    --accent: 3 77% 42%;
+    --accent-foreground: 0 0% 95%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
-    --ring: 45 100% 51%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 51 91% 61%;
 
     --radius: 0.25rem;
-
-    /* Gradient tokens for cinematic effects */
-    --gradient-hero: linear-gradient(135deg, hsl(0 0% 5%), hsl(0 0% 12%));
-    --gradient-gold: linear-gradient(135deg, hsl(45 100% 45%), hsl(45 100% 60%));
-    --glow-gold: 0 0 40px hsl(45 100% 51% / 0.3);
   }
 }
 
@@ -51,8 +42,12 @@ All colors MUST be HSL.
   * {
     @apply border-border;
   }
-
   body {
     @apply bg-background text-foreground;
+    font-family: 'Barlow', sans-serif;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 0.05em;
   }
 }

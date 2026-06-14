@@ -1,59 +1,54 @@
-import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Hero = () => {
   return (
-    <section className="min-h-screen flex items-center justify-center bg-gradient-hero relative overflow-hidden">
-      {/* Background subtle pattern */}
-      <div className="absolute inset-0 opacity-5">
-        <div className="absolute inset-0" style={{
-          backgroundImage: 'radial-gradient(circle at 2px 2px, hsl(var(--primary)) 1px, transparent 0)',
-          backgroundSize: '40px 40px'
-        }} />
-      </div>
+    <section className="relative min-h-screen flex items-center justify-center bg-[#1A1A1A] overflow-hidden pt-24">
+      {/* Background texture stripes */}
+      <div className="absolute inset-0 opacity-5" style={{
+        backgroundImage: "repeating-linear-gradient(45deg, #F5E642 0px, #F5E642 1px, transparent 1px, transparent 20px)"
+      }} />
 
-      <div className="container mx-auto px-6 py-20 relative z-10">
-        <div className="max-w-4xl mx-auto text-center space-y-8">
-          <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl font-bold leading-tight tracking-tight">
-            Seeing the world through{" "}
-            <span className="text-primary">Malik's eyes</span>
-          </h1>
-          
-          <p className="text-xl md:text-2xl text-muted-foreground font-light max-w-2xl mx-auto leading-relaxed">
-            Thought, art, and truth.
-          </p>
+      {/* Hi-vis accent bar top */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-hiviz" />
 
-          <div className="pt-8 space-y-6">
-            <p className="text-lg text-foreground/90 max-w-3xl mx-auto leading-relaxed">
-              I am Malik Sali Akbar — a thinker, artist, and seeker of truth. This is my digital headquarters, 
-              where philosophy meets hustle, and raw reflection becomes timeless art.
-            </p>
+      <div className="container mx-auto px-6 text-center relative z-10">
+        {/* Eyebrow */}
+        <p className="font-condensed text-hiviz text-sm tracking-[0.3em] uppercase mb-4">
+          Foxboro, MA — Built for the Working Class
+        </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
-              <Button 
-                size="lg" 
-                className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold tracking-wide shadow-glow-gold"
-                asChild
-              >
-                <a href="/journal">
-                  Read the Journal <ArrowRight className="ml-2" size={18} />
-                </a>
-              </Button>
-              <Button 
-                size="lg" 
-                variant="outline" 
-                className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-                asChild
-              >
-                <a href="/gallery">Explore the Art</a>
-              </Button>
-            </div>
-          </div>
+        {/* Main headline */}
+        <h1 className="font-display text-[clamp(4rem,15vw,12rem)] leading-none text-white uppercase mb-2">
+          Blue Collar
+        </h1>
+        <h1 className="font-display text-[clamp(4rem,15vw,12rem)] leading-none text-hiviz uppercase mb-8">
+          Bodega
+        </h1>
+
+        {/* Subheadline */}
+        <p className="font-condensed text-xl md:text-2xl text-white/70 max-w-2xl mx-auto mb-12 tracking-wide">
+          We show up for the people who show up every day.
+        </p>
+
+        {/* CTAs */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <Link
+            to="/products"
+            className="inline-block bg-hiviz text-[#1A1A1A] font-condensed font-bold text-lg tracking-widest uppercase px-10 py-4 hover:bg-white transition-colors"
+          >
+            Shop the Bodega
+          </Link>
+          <Link
+            to="/products?collection=ajs-snack-shack"
+            className="inline-block border-2 border-hiviz text-hiviz font-condensed font-bold text-lg tracking-widest uppercase px-10 py-4 hover:bg-hiviz hover:text-[#1A1A1A] transition-colors"
+          >
+            AJ's Snack Shack
+          </Link>
         </div>
       </div>
 
-      {/* Subtle bottom fade */}
-      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent" />
+      {/* Bottom accent bar */}
+      <div className="absolute bottom-0 left-0 right-0 h-1 bg-bodega-red" />
     </section>
   );
 };

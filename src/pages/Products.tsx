@@ -1,12 +1,11 @@
 import { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useNavigate } from "react-router-dom";
 import { useCartStore, ShopifyProduct } from "@/stores/cartStore";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, Package } from "lucide-react";
 
 const SHOPIFY_STORE_PERMANENT_DOMAIN = 'maliks-digital-haven-6tste.myshopify.com';
 const SHOPIFY_API_VERSION = '2025-07';
@@ -22,41 +21,25 @@ const STOREFRONT_QUERY = `
           title
           description
           handle
+          productType
+          tags
           priceRange {
-            minVariantPrice {
-              amount
-              currencyCode
-            }
+            minVariantPrice { amount currencyCode }
           }
           images(first: 5) {
-            edges {
-              node {
-                url
-                altText
-              }
-            }
+            edges { node { url altText } }
           }
           variants(first: 10) {
             edges {
               node {
-                id
-                title
-                price {
-                  amount
-                  currencyCode
-                }
+                id title
+                price { amount currencyCode }
                 availableForSale
-                selectedOptions {
-                  name
-                  value
-                }
+                selectedOptions { name value }
               }
             }
           }
-          options {
-            name
-            values
-          }
+          options { name values }
         }
       }
     }
@@ -68,153 +51,186 @@ async function storefrontApiRequest(query: string, variables: any = {}) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-Shopify-Storefront-Access-Token': SHOPIFY_STOREFRONT_TOKEN
+      'X-Shopify-Storefront-Access-Token': SHOPIFY_STOREFRONT_TOKEN,
     },
-    body: JSON.stringify({
-      query,
-      variables,
-    }),
+    body: JSON.stringify({ query, variables }),
   });
-
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-
-  const data = await response.json();
-  
-  if (data.errors) {
-    throw new Error(`Error calling Shopify: ${data.errors.map((e: any) => e.message).join(', ')}`);
-  }
-
-  return data;
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  return response.json();
 }
+
+const COLLECTIONS = [
+  { id: "all", label: "Shop All" },
+  { id: "ajs-snack-shack", label: "AJ's Snack Shack" },
+  { id: "sayings", label: "The Sayings" },
+  { id: "snacks", label: "Exotic Snacks" },
+];
+
+const collectionTitles: Record<string, { title: string; sub: string }> = {
+  all: { title: "Shop All", sub: "Everything in the Bodega." },
+  "ajs-snack-shack": { title: "AJ's Snack Shack", sub: "The job site legend. Apparel for the trades." },
+  sayings: { title: "The Sayings Collection", sub: "Job site phrases on heavy gear." },
+  snacks: { title: "Exotic Snacks", sub: "International flavors. Straight to the site." },
+};
 
 const Products = () => {
   const [products, setProducts] = useState<ShopifyProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const addItem = useCartStore(state => state.addItem);
+  const location = useLocation();
+  const addItem = useCartStore((state) => state.addItem);
+
+  const params = new URLSearchParams(location.search);
+  const activeCollection = params.get("collection") || "all";
+  const collectionInfo = collectionTitles[activeCollection] || collectionTitles["all"];
 
   useEffect(() => {
     const fetchProducts = async () => {
+      setLoading(true);
       try {
-        const data = await storefrontApiRequest(STOREFRONT_QUERY, { first: 20 });
+        const data = await storefrontApiRequest(STOREFRONT_QUERY, { first: 50 });
         setProducts(data.data.products.edges);
       } catch (error) {
-        console.error('Error fetching products:', error);
+        console.error("Error fetching products:", error);
       } finally {
         setLoading(false);
       }
     };
-
     fetchProducts();
   }, []);
 
+  const filteredProducts = activeCollection === "all"
+    ? products
+    : products.filter((p) => {
+        const tags: string[] = p.node.tags || [];
+        const type: string = p.node.productType || "";
+        if (activeCollection === "ajs-snack-shack") return tags.some(t => t.toLowerCase().includes("ajs") || t.toLowerCase().includes("snack-shack")) || type.toLowerCase().includes("apparel");
+        if (activeCollection === "sayings") return tags.some(t => t.toLowerCase().includes("saying")) || type.toLowerCase().includes("saying");
+        if (activeCollection === "snacks") return tags.some(t => t.toLowerCase().includes("snack") || t.toLowerCase().includes("food")) || type.toLowerCase().includes("snack");
+        return true;
+      });
+
   const handleAddToCart = (product: ShopifyProduct) => {
     const variant = product.node.variants.edges[0].node;
-    addItem({
-      product,
-      variantId: variant.id,
-      variantTitle: variant.title,
-      price: variant.price,
-      quantity: 1,
-      selectedOptions: variant.selectedOptions
-    });
+    addItem({ product, variantId: variant.id, variantTitle: variant.title, price: variant.price, quantity: 1, selectedOptions: variant.selectedOptions });
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-[#1A1A1A]">
       <Navigation />
-      
-      <main className="flex-1">
-        <section className="py-16 px-4 bg-gradient-to-b from-background to-secondary/20">
-          <div className="container mx-auto max-w-6xl text-center">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">
-              Digital Products
-            </h1>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Explore our curated collection of digital products designed to inspire and empower.
-            </p>
+      <main className="flex-1 pt-24">
+        {/* Page Header */}
+        <section className="bg-[#2A2A2A] py-16 border-b border-[#333]">
+          <div className="container mx-auto px-6">
+            <p className="font-condensed text-hiviz text-sm tracking-[0.3em] uppercase mb-2">Blue Collar Bodega</p>
+            <h1 className="font-display text-5xl md:text-7xl text-white mb-4">{collectionInfo.title}</h1>
+            <p className="font-sans text-white/60 text-lg">{collectionInfo.sub}</p>
           </div>
         </section>
 
-        <section className="py-16 px-4">
-          <div className="container mx-auto max-w-6xl">
+        {/* Collection Tabs */}
+        <section className="bg-[#1A1A1A] border-b border-[#2A2A2A] sticky top-[73px] z-40">
+          <div className="container mx-auto px-6">
+            <div className="flex gap-0 overflow-x-auto">
+              {COLLECTIONS.map((col) => (
+                <button
+                  key={col.id}
+                  onClick={() => navigate(col.id === "all" ? "/products" : `/products?collection=${col.id}`)}
+                  className={`font-condensed font-bold text-xs tracking-widest uppercase px-6 py-4 border-b-2 whitespace-nowrap transition-colors ${
+                    activeCollection === col.id
+                      ? "border-hiviz text-hiviz"
+                      : "border-transparent text-white/50 hover:text-white"
+                  }`}
+                >
+                  {col.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Product Grid */}
+        <section className="py-16">
+          <div className="container mx-auto px-6">
             {loading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <Card key={i}>
-                    <CardHeader>
-                      <Skeleton className="h-48 w-full mb-4" />
-                      <Skeleton className="h-6 w-3/4" />
-                    </CardHeader>
-                    <CardContent>
-                      <Skeleton className="h-4 w-full mb-2" />
-                      <Skeleton className="h-4 w-5/6" />
-                    </CardContent>
-                  </Card>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                  <div key={i} className="bg-[#2A2A2A] border border-[#333]">
+                    <Skeleton className="aspect-square w-full bg-[#333]" />
+                    <div className="p-4">
+                      <Skeleton className="h-5 w-3/4 bg-[#333] mb-2" />
+                      <Skeleton className="h-4 w-1/2 bg-[#333]" />
+                    </div>
+                  </div>
                 ))}
               </div>
-            ) : products.length === 0 ? (
-              <div className="text-center py-16">
-                <ShoppingCart className="h-24 w-24 text-muted-foreground mx-auto mb-6" />
-                <h2 className="text-2xl font-semibold mb-4">No products found</h2>
-                <p className="text-muted-foreground mb-6">
-                  We don't have any products yet. Create your first product by telling me what you'd like to sell!
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Example: "Create a product called 'Premium T-Shirt' for $29.99"
-                </p>
+            ) : filteredProducts.length === 0 ? (
+              <div className="text-center py-24">
+                <Package className="h-16 w-16 text-white/20 mx-auto mb-6" />
+                <h2 className="font-display text-4xl text-white mb-4">Nothing Here Yet</h2>
+                <p className="font-sans text-white/50 mb-8">Products are being added. Check back soon.</p>
+                <button
+                  onClick={() => navigate("/products")}
+                  className="font-condensed font-bold text-sm tracking-widest uppercase border-2 border-hiviz text-hiviz py-3 px-8 hover:bg-hiviz hover:text-[#1A1A1A] transition-colors"
+                >
+                  Shop All
+                </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {products.map((product) => (
-                  <Card 
-                    key={product.node.id} 
-                    className="flex flex-col cursor-pointer hover:shadow-lg transition-shadow"
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredProducts.map((product) => (
+                  <div
+                    key={product.node.id}
+                    className="bg-[#2A2A2A] border border-[#333] flex flex-col group cursor-pointer hover:border-hiviz transition-colors"
                     onClick={() => navigate(`/product/${product.node.handle}`)}
                   >
-                    {product.node.images.edges[0] && (
-                      <div className="aspect-square overflow-hidden rounded-t-lg">
+                    {/* Image */}
+                    <div className="aspect-square overflow-hidden bg-[#333] relative">
+                      {product.node.images.edges[0] ? (
                         <img
                           src={product.node.images.edges[0].node.url}
                           alt={product.node.images.edges[0].node.altText || product.node.title}
-                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
-                      </div>
-                    )}
-                    <CardHeader>
-                      <CardTitle>{product.node.title}</CardTitle>
-                      <CardDescription className="line-clamp-2">
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Package className="w-12 h-12 text-white/20" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Info */}
+                    <div className="p-5 flex flex-col flex-1">
+                      <h3 className="font-condensed font-bold text-white text-lg leading-tight mb-1 group-hover:text-hiviz transition-colors">
+                        {product.node.title}
+                      </h3>
+                      <p className="font-sans text-white/50 text-xs line-clamp-2 mb-4 flex-1">
                         {product.node.description}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-1">
-                      <p className="text-2xl font-bold">
-                        {product.node.priceRange.minVariantPrice.currencyCode} $
-                        {parseFloat(product.node.priceRange.minVariantPrice.amount).toFixed(2)}
                       </p>
-                    </CardContent>
-                    <CardFooter className="flex gap-2">
-                      <Button 
-                        className="flex-1"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleAddToCart(product);
-                        }}
-                      >
-                        <ShoppingCart className="w-4 h-4 mr-2" />
-                        Add to Cart
-                      </Button>
-                    </CardFooter>
-                  </Card>
+                      <div className="flex items-center justify-between">
+                        <span className="font-display text-2xl text-hiviz">
+                          ${parseFloat(product.node.priceRange.minVariantPrice.amount).toFixed(2)}
+                        </span>
+                        <Button
+                          size="sm"
+                          className="bg-hiviz text-[#1A1A1A] font-condensed font-bold text-xs tracking-widest uppercase hover:bg-white rounded-none px-4"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddToCart(product);
+                          }}
+                        >
+                          <ShoppingCart className="w-3 h-3 mr-1" />
+                          Add
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
           </div>
         </section>
       </main>
-
       <Footer />
     </div>
   );

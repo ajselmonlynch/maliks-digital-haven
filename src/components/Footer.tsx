@@ -1,94 +1,73 @@
-import { Twitter, Youtube } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Footer = () => {
   return (
-    <footer className="border-t border-border bg-card">
-      <div className="container mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div>
-            <h3 className="font-serif text-xl font-bold mb-4">Malik</h3>
-            <p className="text-muted-foreground text-sm leading-relaxed">
-              Seeing the world through a lens of truth, art, and timeless wisdom.
+    <footer className="bg-[#1A1A1A] border-t border-[#2A2A2A]">
+      {/* Top accent */}
+      <div className="h-1 bg-hiviz" />
+
+      <div className="container mx-auto px-6 py-16">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
+          {/* Brand */}
+          <div className="md:col-span-2">
+            <div className="mb-4">
+              <span className="font-display text-4xl text-hiviz tracking-widest block">Blue Collar</span>
+              <span className="font-display text-4xl text-white tracking-widest block">Bodega</span>
+            </div>
+            <p className="font-sans text-white/50 text-sm leading-relaxed max-w-xs">
+              Built for the working class. Foxboro, MA. We show up for the people who show up every day.
+            </p>
+            <p className="font-condensed text-hiviz text-xs tracking-[0.3em] uppercase mt-4">
+              little shack. BIG IMPACT.
             </p>
           </div>
 
+          {/* Shop */}
           <div>
-            <h4 className="font-semibold mb-4">Quick Links</h4>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <a href="/journal" className="text-muted-foreground hover:text-primary transition-colors">
-                  Journal
-                </a>
-              </li>
-              <li>
-                <a href="/gallery" className="text-muted-foreground hover:text-primary transition-colors">
-                  Art
-                </a>
-              </li>
-              <li>
-                <a href="/products" className="text-muted-foreground hover:text-primary transition-colors">
-                  Products
-                </a>
-              </li>
-              <li>
-                <a href="/library" className="text-muted-foreground hover:text-primary transition-colors">
-                  Library
-                </a>
-              </li>
-              <li>
-                <a href="/about" className="text-muted-foreground hover:text-primary transition-colors">
-                  About
-                </a>
-              </li>
-              <li>
-                <a href="/legal/privacy" className="text-muted-foreground hover:text-primary transition-colors">
-                  Privacy
-                </a>
-              </li>
-              <li>
-                <a href="/legal/terms" className="text-muted-foreground hover:text-primary transition-colors">
-                  Terms
-                </a>
-              </li>
+            <h4 className="font-condensed font-bold text-xs tracking-[0.3em] uppercase text-white/40 mb-6">Shop</h4>
+            <ul className="space-y-3">
+              {[
+                { to: "/products", label: "Shop All" },
+                { to: "/products?collection=ajs-snack-shack", label: "AJ's Snack Shack" },
+                { to: "/products?collection=sayings", label: "The Sayings Collection" },
+                { to: "/products?collection=snacks", label: "Exotic Snacks" },
+              ].map((link) => (
+                <li key={link.to}>
+                  <Link to={link.to} className="font-sans text-sm text-white/60 hover:text-hiviz transition-colors">
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
+          {/* Info */}
           <div>
-            <h4 className="font-semibold mb-4">Connect</h4>
-            <div className="flex gap-4">
-              <a
-                href="https://twitter.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-all"
-                aria-label="Twitter"
-              >
-                <Twitter size={18} />
-              </a>
-              <a
-                href="https://youtube.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-all"
-                aria-label="YouTube"
-              >
-                <Youtube size={18} />
-              </a>
-              <a
-                href="https://fanbase.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-all text-xs font-bold"
-                aria-label="Fanbase"
-              >
-                FB
-              </a>
-            </div>
+            <h4 className="font-condensed font-bold text-xs tracking-[0.3em] uppercase text-white/40 mb-6">Info</h4>
+            <ul className="space-y-3">
+              {[
+                { to: "/about", label: "About" },
+                { to: "/contact", label: "Contact" },
+                { to: "/legal/privacy", label: "Privacy Policy" },
+                { to: "/legal/terms", label: "Terms of Service" },
+              ].map((link) => (
+                <li key={link.to}>
+                  <Link to={link.to} className="font-sans text-sm text-white/60 hover:text-hiviz transition-colors">
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
 
-        <div className="mt-12 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} Malik Sali Akbar. All rights reserved.</p>
+        <div className="mt-16 pt-8 border-t border-[#2A2A2A] flex flex-col md:flex-row items-center justify-between gap-4">
+          <p className="font-sans text-xs text-white/30">
+            © {new Date().getFullYear()} Blue Collar Bodega. All rights reserved.
+          </p>
+          <p className="font-condensed text-xs tracking-widest uppercase text-white/30">
+            Foxboro, MA — Printed on Demand — Ships in 2–4 Business Days
+          </p>
         </div>
       </div>
     </footer>
